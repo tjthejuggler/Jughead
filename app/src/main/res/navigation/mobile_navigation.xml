@@ -16,7 +16,12 @@
         tools:layout="@layout/fragment_dashboard" />
     <fragment
         android:id="@+id/navigation_sensors"
-        android:name="com.example.jughead.ui.sensor.SensorFragment"
+        android:name="com.example.jughead.ui.sensors.SensorFragment"
         android:label="@string/title_sensors"
         tools:layout="@layout/fragment_sensors" />
+    <fragment
+        android:id="@+id/navigation_gesture_mapping"
+        android:name="com.example.jughead.ui.gesturemapping.GestureMappingFragment"
+        android:label="@string/title_gesture_mapping"
+        tools:layout="@layout/fragment_gesture_mapping" />
 </navigation>

@@ -1,5 +1,4 @@
-// SensorFragment.kt
-package com.example.jughead.ui.sensor
+package com.example.jughead.ui.sensors
 
 import android.content.Context
 import android.hardware.Sensor
@@ -24,14 +23,11 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.fragment.app.viewModels
-import androidx.lifecycle.Observer
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.getValue
-
 
 class SensorViewModel : ViewModel() {
     private val _sensorReadings = MutableLiveData<Map<Int, String>>()
@@ -45,8 +41,6 @@ class SensorViewModel : ViewModel() {
     }
 }
 
-
-
 class SensorFragment : Fragment(), SensorEventListener {
     private lateinit var sensorManager: SensorManager
     private val activeSensors = mutableListOf<Sensor>()
@@ -56,20 +50,10 @@ class SensorFragment : Fragment(), SensorEventListener {
         super.onCreate(savedInstanceState)
         sensorManager = requireContext().getSystemService(Context.SENSOR_SERVICE) as SensorManager
 
-        // Initialize sensors
-        listOf(
-            Sensor.TYPE_ACCELEROMETER,
-            Sensor.TYPE_GYROSCOPE,
-            Sensor.TYPE_MAGNETIC_FIELD,
-            Sensor.TYPE_LIGHT,
-            Sensor.TYPE_PROXIMITY
-        ).forEach { sensorType ->
-            sensorManager.getDefaultSensor(sensorType)?.let { sensor ->
-                activeSensors.add(sensor)
-                if (sensor.type == Sensor.TYPE_PROXIMITY) {
-                    Log.d("SensorFragment", "Proximity sensor max range: ${sensor.maximumRange}")
-                }
-            }
+        // Dynamically initialize all available sensors
+        sensorManager.getSensorList(Sensor.TYPE_ALL).forEach { sensor ->
+            activeSensors.add(sensor)
+            Log.d("SensorFragment", "Found sensor: ${sensor.name} (Type: ${sensor.type})")
         }
     }
 
@@ -98,15 +82,7 @@ class SensorFragment : Fragment(), SensorEventListener {
     }
 
     override fun onSensorChanged(event: SensorEvent) {
-        val sensorName = when (event.sensor.type) {
-            Sensor.TYPE_ACCELEROMETER -> "Accelerometer"
-            Sensor.TYPE_GYROSCOPE -> "Gyroscope"
-            Sensor.TYPE_MAGNETIC_FIELD -> "Magnetic Field"
-            Sensor.TYPE_LIGHT -> "Light"
-            Sensor.TYPE_PROXIMITY -> "Proximity"
-            else -> "Unknown"
-        }
-
+        val sensorName = event.sensor.name
         val values = event.values.joinToString(", ") { "%.2f".format(it) }
         viewModel.updateReading(event.sensor.type, "$sensorName: $values")
     }
@@ -115,8 +91,6 @@ class SensorFragment : Fragment(), SensorEventListener {
         // Not used in this example
     }
 }
-
-
 
 @Composable
 fun SensorReadingsScreen(viewModel: SensorViewModel) {
