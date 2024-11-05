@@ -106,13 +106,14 @@ fun SensorReadingsScreen(viewModel: SensorViewModel) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(46.dp)
             .verticalScroll(rememberScrollState())
     ) {
         viewModel.sensorReadings.values.forEach { reading ->
             Text(
                 text = reading,
                 style = MaterialTheme.typography.bodyLarge,
+                color = androidx.compose.ui.graphics.Color.White,
                 modifier = Modifier.padding(vertical = 8.dp)
             )
         }
