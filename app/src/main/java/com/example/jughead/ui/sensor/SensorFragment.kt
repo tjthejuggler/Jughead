@@ -7,6 +7,7 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -24,25 +25,36 @@ import androidx.compose.ui.unit.dp
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.Observer
+import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.runtime.getValue
+
 
 class SensorViewModel : ViewModel() {
-    private val _sensorReadings = mutableMapOf<Int, String>()
-    val sensorReadings: Map<Int, String> get() = _sensorReadings
+    private val _sensorReadings = MutableLiveData<Map<Int, String>>()
+    val sensorReadings: LiveData<Map<Int, String>> get() = _sensorReadings
+
+    private val readings = mutableMapOf<Int, String>()
 
     fun updateReading(sensorType: Int, reading: String) {
-        _sensorReadings[sensorType] = reading
+        readings[sensorType] = reading
+        _sensorReadings.value = readings.toMap()
     }
 }
+
+
 
 class SensorFragment : Fragment(), SensorEventListener {
     private lateinit var sensorManager: SensorManager
     private val activeSensors = mutableListOf<Sensor>()
-    private lateinit var viewModel: SensorViewModel
+    private val viewModel: SensorViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         sensorManager = requireContext().getSystemService(Context.SENSOR_SERVICE) as SensorManager
-        viewModel = ViewModelProvider(this)[SensorViewModel::class.java]
 
         // Initialize sensors
         listOf(
@@ -54,6 +66,9 @@ class SensorFragment : Fragment(), SensorEventListener {
         ).forEach { sensorType ->
             sensorManager.getDefaultSensor(sensorType)?.let { sensor ->
                 activeSensors.add(sensor)
+                if (sensor.type == Sensor.TYPE_PROXIMITY) {
+                    Log.d("SensorFragment", "Proximity sensor max range: ${sensor.maximumRange}")
+                }
             }
         }
     }
@@ -101,15 +116,19 @@ class SensorFragment : Fragment(), SensorEventListener {
     }
 }
 
+
+
 @Composable
 fun SensorReadingsScreen(viewModel: SensorViewModel) {
+    val sensorReadings by viewModel.sensorReadings.observeAsState(emptyMap())
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(46.dp)
             .verticalScroll(rememberScrollState())
     ) {
-        viewModel.sensorReadings.values.forEach { reading ->
+        sensorReadings.forEach { (_, reading: String) ->
             Text(
                 text = reading,
                 style = MaterialTheme.typography.bodyLarge,

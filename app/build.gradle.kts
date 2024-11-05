@@ -51,6 +51,10 @@ android {
 }
 
 dependencies {
+    implementation("androidx.compose.runtime:runtime-livedata:1.0.5")
+    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.4.0")
+
+
     // Keep your existing dependencies
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
