@@ -29,6 +29,7 @@ import androidx.fragment.app.viewModels
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.getValue
 
+
 class SensorViewModel : ViewModel() {
     private val _sensorReadings = MutableLiveData<Map<Int, String>>()
     val sensorReadings: LiveData<Map<Int, String>> get() = _sensorReadings
@@ -102,7 +103,7 @@ fun SensorReadingsScreen(viewModel: SensorViewModel) {
             .padding(46.dp)
             .verticalScroll(rememberScrollState())
     ) {
-        sensorReadings.forEach { (_, reading: String) ->
+        sensorReadings.forEach { (_, reading) ->
             Text(
                 text = reading,
                 style = MaterialTheme.typography.bodyLarge,
