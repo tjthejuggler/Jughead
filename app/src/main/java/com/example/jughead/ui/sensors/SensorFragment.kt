@@ -28,6 +28,7 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.compose.runtime.livedata.observeAsState
 
 class SensorViewModel : ViewModel() {
     private val _sensorReadings = MutableLiveData<Map<Int, String>>(emptyMap())
@@ -108,6 +109,7 @@ private fun SensorReadingsScreen(viewModel: SensorViewModel) {
             Text(
                 text = reading,
                 style = MaterialTheme.typography.bodyLarge,
+                color = androidx.compose.ui.graphics.Color.White,
                 modifier = Modifier.padding(vertical = 4.dp)
             )
         }
