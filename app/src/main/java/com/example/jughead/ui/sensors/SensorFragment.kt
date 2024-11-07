@@ -59,6 +59,12 @@ data class SensorValueRange(
         val padding = range * 0.1f
         return Pair(minValue - padding, maxValue + padding)
     }
+
+    fun hasChanged(): Boolean {
+        return minValue != Float.POSITIVE_INFINITY && 
+               maxValue != Float.NEGATIVE_INFINITY && 
+               minValue != maxValue  // Check if the range actually varies
+    }
 }
 
 data class SensorReading(
@@ -132,15 +138,11 @@ class SensorViewModel(private val context: Context) : ViewModel() {
                 ranges[index].update(value)
             }
 
-            if (values.any { it != 0f }) {
-                readings[sensor.type] = SensorReading(
-                    name = sensor.name,
-                    values = values.toList(),
-                    ranges = ranges
-                )
-            } else {
-                readings.remove(sensor.type)
-            }
+            readings[sensor.type] = SensorReading(
+                name = sensor.name,
+                values = values.toList(),
+                ranges = ranges
+            )
 
             _sensorReadings.value = readings.toMap()
         }
@@ -168,8 +170,8 @@ class SensorViewModel(private val context: Context) : ViewModel() {
         if (sensorType == CameraRGBSensor.TYPE_CAMERA_RGB) {
             return true
         }
-        // Other sensors are active only if they have non-zero values
-        return readings[sensorType]?.values?.any { it != 0f } == true
+        // Other sensors are active only if they have changed values
+        return readings[sensorType]?.ranges?.any { it.hasChanged() } == true
     }
 
     fun getSensorManager(): SensorManager {
@@ -355,12 +357,12 @@ private fun SensorReadingsScreen(
     onPreviewCreated: (PreviewView) -> Unit
 ) {
     val readings: Map<Int, SensorReading> by viewModel.sensorReadings.observeAsState(emptyMap())
-    var hideValuelessSensors by remember { mutableStateOf(true) }
+    var hideUnchangedSensors by remember { mutableStateOf(true) }
     
-    val groupedSensors = remember(readings, hideValuelessSensors) {
+    val groupedSensors = remember(readings, hideUnchangedSensors) {
         readings.entries
             .filter { (sensorType, reading) ->
-                !hideValuelessSensors || reading.values.any { it != 0f }
+                !hideUnchangedSensors || reading.ranges.any { it.hasChanged() }
             }
             .groupBy { (sensorType, _) ->
                 when (sensorType) {
@@ -402,7 +404,7 @@ private fun SensorReadingsScreen(
                                         color = Color.White
                                     )
 
-                                    if (sensorType == CameraRGBSensor.TYPE_CAMERA_RGB && (!hideValuelessSensors || reading.values.any { it != 0f })) {
+                                    if (sensorType == CameraRGBSensor.TYPE_CAMERA_RGB && (!hideUnchangedSensors || reading.ranges.any { it.hasChanged() })) {
                                         AndroidView(
                                             factory = { context ->
                                                 PreviewView(context).apply {
@@ -424,7 +426,7 @@ private fun SensorReadingsScreen(
                                     }
                                     
                                     reading.values.forEachIndexed { index, value ->
-                                        if (index < reading.ranges.size) {
+                                        if (index < reading.ranges.size && (!hideUnchangedSensors || reading.ranges[index].hasChanged())) {
                                             val axis = when {
                                                 sensorType == CameraRGBSensor.TYPE_CAMERA_RGB -> when(index) {
                                                     0 -> "Red"
@@ -472,11 +474,11 @@ private fun SensorReadingsScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Checkbox(
-                checked = hideValuelessSensors,
-                onCheckedChange = { hideValuelessSensors = it }
+                checked = hideUnchangedSensors,
+                onCheckedChange = { hideUnchangedSensors = it }
             )
             Text(
-                text = "Hide valueless sensors",
+                text = "Hide unchanged sensors",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color.White,
                 modifier = Modifier.padding(start = 8.dp)
@@ -484,4 +486,3 @@ private fun SensorReadingsScreen(
         }
     }
 }
-
