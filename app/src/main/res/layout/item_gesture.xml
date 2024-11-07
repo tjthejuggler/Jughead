@@ -3,20 +3,35 @@
     android:id="@+id/gesture_item_layout"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="horizontal"
+    android:orientation="vertical"
     android:paddingBottom="8dp">
 
-    <TextView
-        android:id="@+id/gesture_name"
-        android:layout_width="0dp"
-        android:layout_weight="1"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Gesture Name"
-        android:textSize="18sp" />
+        android:orientation="horizontal">
 
-    <Button
-        android:id="@+id/assign_command_button"
+        <TextView
+            android:id="@+id/gesture_name"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="Gesture Name"
+            android:textSize="18sp" />
+
+        <Button
+            android:id="@+id/assign_command_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Assign Command" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/assigned_command"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Assign Command" />
+        android:text="Assigned Command"
+        android:textSize="14sp"
+        android:paddingLeft="8dp" />
+
 </LinearLayout>

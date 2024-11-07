@@ -17,9 +17,10 @@ class SensorDataHandler(context: Context, private val gestureMappingViewModel: G
         // Process sensor data and detect gestures
         val detectedGesture = detectGesture(event)
         if (detectedGesture != null) {
-            val command = gestureMappingViewModel.gestureMappings.value?.get(detectedGesture)
-            if (command != null) {
-                executeCommand(command)
+            gestureMappingViewModel.getCommandForGesture(detectedGesture) { command ->
+                if (command != null) {
+                    executeCommand(command)
+                }
             }
         }
     }

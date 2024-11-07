@@ -18,21 +18,20 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.ViewModel
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import androidx.fragment.app.viewModels
-import androidx.compose.runtime.livedata.observeAsState
-import androidx.compose.runtime.getValue
-
+import androidx.lifecycle.ViewModel
 
 class SensorViewModel : ViewModel() {
-    private val _sensorReadings = MutableLiveData<Map<Int, String>>()
-    val sensorReadings: LiveData<Map<Int, String>> get() = _sensorReadings
+    private val _sensorReadings = MutableLiveData<Map<Int, String>>(emptyMap())
+    val sensorReadings: LiveData<Map<Int, String>> = _sensorReadings
 
     private val readings = mutableMapOf<Int, String>()
 
@@ -65,7 +64,9 @@ class SensorFragment : Fragment(), SensorEventListener {
     ): View {
         return ComposeView(requireContext()).apply {
             setContent {
-                SensorReadingsScreen(viewModel)
+                MaterialTheme {
+                    SensorReadingsScreen(viewModel)
+                }
             }
         }
     }
@@ -94,21 +95,20 @@ class SensorFragment : Fragment(), SensorEventListener {
 }
 
 @Composable
-fun SensorReadingsScreen(viewModel: SensorViewModel) {
-    val sensorReadings by viewModel.sensorReadings.observeAsState(emptyMap())
+private fun SensorReadingsScreen(viewModel: SensorViewModel) {
+    val readings: Map<Int, String> by viewModel.sensorReadings.observeAsState(emptyMap())
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(46.dp)
+            .padding(16.dp)
             .verticalScroll(rememberScrollState())
     ) {
-        sensorReadings.forEach { (_, reading) ->
+        readings.entries.forEach { (_, reading) ->
             Text(
                 text = reading,
                 style = MaterialTheme.typography.bodyLarge,
-                color = androidx.compose.ui.graphics.Color.White,
-                modifier = Modifier.padding(vertical = 8.dp)
+                modifier = Modifier.padding(vertical = 4.dp)
             )
         }
     }

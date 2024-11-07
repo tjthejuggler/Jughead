@@ -1,68 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/gesture_mapping_scroll_view"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/gesture_mapping_layout"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
 
-    <LinearLayout
-        android:id="@+id/gesture_mapping_layout"
+    <!-- Header -->
+    <TextView
+        android:id="@+id/gesture_mapping_header"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Gesture Mapping"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:paddingBottom="16dp" />
+
+    <!-- RecyclerView for Gesture List -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/gesture_recycler_view"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <!-- Add New Gesture Button -->
+    <Button
+        android:id="@+id/add_new_gesture_button"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp">
+        android:text="Add New Gesture" />
 
-        <!-- Header -->
-        <TextView
-            android:id="@+id/gesture_mapping_header"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Gesture Mapping"
-            android:textSize="24sp"
-            android:textStyle="bold"
-            android:paddingBottom="16dp" />
-
-        <!-- List of Gestures -->
-        <!-- You can use a RecyclerView here for a dynamic list -->
-        <!-- For simplicity, we'll use LinearLayout with sample items -->
-
-        <LinearLayout
-            android:id="@+id/gesture_list_layout"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical">
-
-            <!-- Sample Gesture Item -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:paddingBottom="8dp">
-
-                <TextView
-                    android:id="@+id/gesture_name"
-                    android:layout_width="0dp"
-                    android:layout_weight="1"
-                    android:layout_height="wrap_content"
-                    android:text="Tap/Stomp Gesture"
-                    android:textSize="18sp" />
-
-                <Button
-                    android:id="@+id/assign_command_button"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Assign Command" />
-            </LinearLayout>
-
-            <!-- Repeat the above block for each gesture or use RecyclerView -->
-
-        </LinearLayout>
-
-        <!-- Add New Gesture Button -->
-        <Button
-            android:id="@+id/add_new_gesture_button"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Add New Gesture" />
-
-    </LinearLayout>
-</ScrollView>
+</LinearLayout>

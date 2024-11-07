@@ -2,20 +2,21 @@ package com.example.jughead.ui.gesturemapping
 
 import android.os.Bundle
 import android.view.*
-import android.widget.Button
-import android.widget.TextView
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.ViewModelProvider
 import com.example.jughead.databinding.FragmentGestureMappingBinding
 import android.widget.Toast
-import com.example.jughead.R
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.example.jughead.data.GestureMapping
 
 class GestureMappingFragment : Fragment() {
 
     private var _binding: FragmentGestureMappingBinding? = null
     private val binding get() = _binding!!
 
-    // Example gesture list (this would normally come from a ViewModel or database)
-    private val gestureList = listOf("Tap/Stomp", "Knee Lift", "Leg Rotation")
+    private lateinit var viewModel: GestureMappingViewModel
+    private lateinit var adapter: GestureMappingAdapter
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -26,29 +27,12 @@ class GestureMappingFragment : Fragment() {
         _binding = FragmentGestureMappingBinding.inflate(inflater, container, false)
         val root: View = binding.root
 
-        // Inflate gesture list dynamically
-        val gestureListLayout = binding.gestureListLayout
-        gestureList.forEach { gestureName ->
-            val gestureItemView = layoutInflater.inflate(
-                R.layout.item_gesture, gestureListLayout, false
-            )
+        viewModel = ViewModelProvider(
+            this,
+            ViewModelProvider.AndroidViewModelFactory.getInstance(requireActivity().application)
+        ).get(GestureMappingViewModel::class.java)
 
-            val gestureNameTextView = gestureItemView.findViewById<TextView>(R.id.gesture_name)
-            val assignCommandButton = gestureItemView.findViewById<Button>(R.id.assign_command_button)
-
-            gestureNameTextView.text = gestureName
-            assignCommandButton.setOnClickListener {
-                val dialog = CommandSelectionDialogFragment(gestureName) { selectedCommand ->
-                    // Handle the selected command assignment
-                    Toast.makeText(requireContext(), "$selectedCommand assigned to $gestureName", Toast.LENGTH_SHORT).show()
-                    // TODO: Save the mapping in your data storage
-                }
-                dialog.show(parentFragmentManager, "CommandSelectionDialog")
-            }
-
-
-            gestureListLayout.addView(gestureItemView)
-        }
+        setupRecyclerView()
 
         binding.addNewGestureButton.setOnClickListener {
             // Handle adding a new custom gesture
@@ -57,6 +41,30 @@ class GestureMappingFragment : Fragment() {
         }
 
         return root
+    }
+
+    private fun setupRecyclerView() {
+        adapter = GestureMappingAdapter { gestureMapping ->
+            // Handle the assign command button click
+            showCommandSelectionDialog(gestureMapping)
+        }
+
+        binding.gestureRecyclerView.layoutManager = LinearLayoutManager(requireContext())
+        binding.gestureRecyclerView.adapter = adapter
+
+        // Observe the gesture mappings from the ViewModel
+        viewModel.gestureMappings.observe(viewLifecycleOwner) { mappings ->
+            adapter.submitList(mappings)
+        }
+    }
+
+    private fun showCommandSelectionDialog(gestureMapping: GestureMapping) {
+        val dialog = CommandSelectionDialogFragment(gestureMapping.gestureName) { selectedCommand ->
+            // Update the mapping in the database
+            viewModel.insertMapping(gestureMapping.gestureName, selectedCommand)
+            Toast.makeText(requireContext(), "$selectedCommand assigned to ${gestureMapping.gestureName}", Toast.LENGTH_SHORT).show()
+        }
+        dialog.show(parentFragmentManager, "CommandSelectionDialog")
     }
 
     override fun onDestroyView() {
