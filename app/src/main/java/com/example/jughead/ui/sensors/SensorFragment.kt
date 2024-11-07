@@ -13,16 +13,24 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.camera.view.PreviewView
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -62,7 +70,36 @@ data class SensorReading(
     val ranges: List<SensorValueRange>
 )
 
-class SensorViewModel : ViewModel() {
+enum class SensorCategory(val title: String) {
+    VISION("Vision"),
+    MOVEMENT("Movement"),
+    POSITION("Position"),
+    ENVIRONMENT("Environment")
+}
+
+fun Sensor.getCategory(): SensorCategory = when (this.type) {
+    Sensor.TYPE_LIGHT, 
+    Sensor.TYPE_PROXIMITY -> SensorCategory.VISION
+    
+    Sensor.TYPE_ACCELEROMETER,
+    Sensor.TYPE_GYROSCOPE,
+    Sensor.TYPE_STEP_COUNTER,
+    Sensor.TYPE_STEP_DETECTOR,
+    Sensor.TYPE_SIGNIFICANT_MOTION -> SensorCategory.MOVEMENT
+    
+    Sensor.TYPE_MAGNETIC_FIELD,
+    Sensor.TYPE_ORIENTATION,
+    Sensor.TYPE_GRAVITY,
+    Sensor.TYPE_ROTATION_VECTOR -> SensorCategory.POSITION
+    
+    Sensor.TYPE_PRESSURE,
+    Sensor.TYPE_AMBIENT_TEMPERATURE,
+    Sensor.TYPE_RELATIVE_HUMIDITY -> SensorCategory.ENVIRONMENT
+    
+    else -> SensorCategory.POSITION // Default category for unknown sensors
+}
+
+class SensorViewModel(private val context: Context) : ViewModel() {
     private val _sensorReadings = MutableLiveData<Map<Int, SensorReading>>()
     val sensorReadings: LiveData<Map<Int, SensorReading>> = _sensorReadings
 
@@ -119,12 +156,28 @@ class SensorViewModel : ViewModel() {
             _sensorReadings.value = readings.toMap()
         }
     }
+
+    fun getSensorManager(): SensorManager {
+        return context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+    }
+}
+
+class SensorViewModelFactory(private val context: Context) : androidx.lifecycle.ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(SensorViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return SensorViewModel(context) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
+    }
 }
 
 class SensorFragment : Fragment(), SensorEventListener {
     private lateinit var sensorManager: SensorManager
     private val activeSensors = mutableListOf<Sensor>()
-    private val viewModel: SensorViewModel by viewModels()
+    private val viewModel: SensorViewModel by viewModels { 
+        SensorViewModelFactory(requireContext())
+    }
     private var cameraRGBSensor: CameraRGBSensor? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -147,7 +200,6 @@ class SensorFragment : Fragment(), SensorEventListener {
                 MaterialTheme {
                     Column(modifier = Modifier.fillMaxSize()) {
                         SensorReadingsScreen(viewModel) { previewView ->
-                            // Initialize camera RGB sensor with the PreviewView
                             if (cameraRGBSensor == null) {
                                 cameraRGBSensor = CameraRGBSensor(
                                     requireContext(),
@@ -192,6 +244,51 @@ class SensorFragment : Fragment(), SensorEventListener {
 }
 
 @Composable
+private fun CollapsibleSection(
+    title: String,
+    content: @Composable () -> Unit
+) {
+    var expanded by remember { mutableStateOf(true) }
+    val rotationState by animateFloatAsState(if (expanded) 180f else 0f)
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { expanded = !expanded }
+                .padding(vertical = 8.dp),
+            color = MaterialTheme.colorScheme.primaryContainer
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowDown,
+                    contentDescription = if (expanded) "Collapse" else "Expand",
+                    modifier = Modifier.rotate(rotationState),
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+        }
+        
+        AnimatedVisibility(visible = expanded) {
+            content()
+        }
+        
+        Spacer(modifier = Modifier.height(8.dp))
+    }
+}
+
+@Composable
 private fun SensorRangeIndicator(
     value: Float,
     range: SensorValueRange,
@@ -201,7 +298,6 @@ private fun SensorRangeIndicator(
     
     Box(modifier = modifier.height(30.dp)) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            // Draw background line
             drawLine(
                 color = Color.Gray,
                 start = Offset(0f, size.height / 2),
@@ -210,11 +306,9 @@ private fun SensorRangeIndicator(
                 cap = StrokeCap.Round
             )
 
-            // Calculate marker position
             val position = (value - currentRange.first) / (currentRange.second - currentRange.first)
             val x = position * size.width
             
-            // Draw marker
             drawCircle(
                 color = Color.Green,
                 radius = 8f,
@@ -222,7 +316,6 @@ private fun SensorRangeIndicator(
             )
         }
 
-        // Draw range values
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
@@ -247,6 +340,19 @@ private fun SensorReadingsScreen(
     onPreviewCreated: (PreviewView) -> Unit
 ) {
     val readings: Map<Int, SensorReading> by viewModel.sensorReadings.observeAsState(emptyMap())
+    
+    val groupedSensors = remember(readings) {
+        readings.entries.groupBy { (sensorType, _) ->
+            when (sensorType) {
+                CameraRGBSensor.TYPE_CAMERA_RGB -> SensorCategory.VISION
+                else -> {
+                    val sensorManager = viewModel.getSensorManager()
+                    val sensor = sensorManager.getSensorList(Sensor.TYPE_ALL).find { it.type == sensorType }
+                    sensor?.getCategory() ?: SensorCategory.POSITION
+                }
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -254,78 +360,81 @@ private fun SensorReadingsScreen(
             .padding(16.dp)
             .verticalScroll(rememberScrollState())
     ) {
-        readings.entries.sortedBy { 
-            // Put RGB sensor at the top
-            if (it.key == CameraRGBSensor.TYPE_CAMERA_RGB) -1 else it.key 
-        }.forEach { (sensorType, reading) ->
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp)
-            ) {
-                Text(
-                    text = reading.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = Color.White
-                )
-
-                // Add camera preview for RGB sensor
-                if (sensorType == CameraRGBSensor.TYPE_CAMERA_RGB) {
-                    AndroidView(
-                        factory = { context ->
-                            PreviewView(context).apply {
-                                this.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
-                                this.scaleType = PreviewView.ScaleType.FILL_CENTER
-                                layoutParams = ViewGroup.LayoutParams(
-                                    ViewGroup.LayoutParams.MATCH_PARENT,
-                                    300 // Taller preview in the list
+        SensorCategory.values().forEach { category ->
+            val sensorsInCategory = groupedSensors[category] ?: emptyList()
+            if (sensorsInCategory.isNotEmpty()) {
+                CollapsibleSection(title = category.title) {
+                    Column {
+                        sensorsInCategory.forEach { (sensorType, reading) ->
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp)
+                            ) {
+                                Text(
+                                    text = reading.name,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = Color.White
                                 )
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(300.dp)
-                            .padding(vertical = 8.dp)
-                    ) { previewView ->
-                        onPreviewCreated(previewView)
-                    }
-                }
-                
-                reading.values.forEachIndexed { index, value ->
-                    if (index < reading.ranges.size) {
-                        val axis = when {
-                            sensorType == CameraRGBSensor.TYPE_CAMERA_RGB -> when(index) {
-                                0 -> "Red"
-                                1 -> "Green"
-                                2 -> "Blue"
-                                else -> index.toString()
-                            }
-                            else -> when(index) {
-                                0 -> "X"
-                                1 -> "Y"
-                                2 -> "Z"
-                                else -> index.toString()
+
+                                if (sensorType == CameraRGBSensor.TYPE_CAMERA_RGB) {
+                                    AndroidView(
+                                        factory = { context ->
+                                            PreviewView(context).apply {
+                                                this.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+                                                this.scaleType = PreviewView.ScaleType.FILL_CENTER
+                                                layoutParams = ViewGroup.LayoutParams(
+                                                    ViewGroup.LayoutParams.MATCH_PARENT,
+                                                    300
+                                                )
+                                            }
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(300.dp)
+                                            .padding(vertical = 8.dp)
+                                    ) { previewView ->
+                                        onPreviewCreated(previewView)
+                                    }
+                                }
+                                
+                                reading.values.forEachIndexed { index, value ->
+                                    if (index < reading.ranges.size) {
+                                        val axis = when {
+                                            sensorType == CameraRGBSensor.TYPE_CAMERA_RGB -> when(index) {
+                                                0 -> "Red"
+                                                1 -> "Green"
+                                                2 -> "Blue"
+                                                else -> index.toString()
+                                            }
+                                            else -> when(index) {
+                                                0 -> "X"
+                                                1 -> "Y"
+                                                2 -> "Z"
+                                                else -> index.toString()
+                                            }
+                                        }
+                                        
+                                        Text(
+                                            text = "$axis: ${String.format("%.2f", value)}",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = Color.White,
+                                            modifier = Modifier.padding(top = 4.dp)
+                                        )
+                                        
+                                        SensorRangeIndicator(
+                                            value = value,
+                                            range = reading.ranges[index],
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 4.dp)
+                                        )
+                                    }
+                                }
                             }
                         }
-                        
-                        Text(
-                            text = "$axis: ${String.format("%.2f", value)}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.White,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-                        
-                        SensorRangeIndicator(
-                            value = value,
-                            range = reading.ranges[index],
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                        )
                     }
                 }
-                
-                Spacer(modifier = Modifier.height(8.dp))
             }
         }
     }
