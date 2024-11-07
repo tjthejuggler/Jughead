@@ -4,6 +4,9 @@
 
     <!-- Permission for accessing health-related sensors -->
     <uses-permission android:name="android.permission.BODY_SENSORS" />
+    <!-- Camera permissions -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" />
 
     <application
         android:allowBackup="true"

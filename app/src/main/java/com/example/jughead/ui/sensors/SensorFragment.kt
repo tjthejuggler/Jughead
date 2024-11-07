@@ -6,10 +6,13 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -25,6 +28,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.LiveData
@@ -43,11 +47,9 @@ data class SensorValueRange(
     }
 
     fun getRange(): Pair<Float, Float> {
-        // If we haven't received any values yet, use a default range
         if (minValue == Float.POSITIVE_INFINITY || maxValue == Float.NEGATIVE_INFINITY) {
-            return Pair(-1f, 1f)
+            return Pair(0f, 1f)  // Default range for RGB values
         }
-        // Add a 10% padding to the range for better visualization
         val range = maxValue - minValue
         val padding = range * 0.1f
         return Pair(minValue - padding, maxValue + padding)
@@ -61,11 +63,24 @@ data class SensorReading(
 )
 
 class SensorViewModel : ViewModel() {
-    private val _sensorReadings = MutableLiveData<Map<Int, SensorReading>>(emptyMap())
+    private val _sensorReadings = MutableLiveData<Map<Int, SensorReading>>()
     val sensorReadings: LiveData<Map<Int, SensorReading>> = _sensorReadings
 
     private val readings = mutableMapOf<Int, SensorReading>()
     private val sensorRanges = mutableMapOf<Int, List<SensorValueRange>>()
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    init {
+        // Initialize RGB sensor with default values
+        val rgbRanges = List(3) { SensorValueRange() }
+        readings[CameraRGBSensor.TYPE_CAMERA_RGB] = SensorReading(
+            name = "Camera RGB Sensor",
+            values = listOf(0f, 0f, 0f),
+            ranges = rgbRanges
+        )
+        sensorRanges[CameraRGBSensor.TYPE_CAMERA_RGB] = rgbRanges
+        _sensorReadings.value = readings.toMap()
+    }
 
     private fun getOrCreateRanges(sensorType: Int, valueCount: Int): List<SensorValueRange> {
         return sensorRanges.getOrPut(sensorType) {
@@ -74,19 +89,35 @@ class SensorViewModel : ViewModel() {
     }
 
     fun updateReading(sensor: Sensor, values: FloatArray) {
-        val ranges = getOrCreateRanges(sensor.type, values.size)
-        
-        // Update ranges with new values
-        values.forEachIndexed { index, value ->
-            ranges[index].update(value)
-        }
+        mainHandler.post {
+            val ranges = getOrCreateRanges(sensor.type, values.size)
+            values.forEachIndexed { index, value ->
+                ranges[index].update(value)
+            }
 
-        readings[sensor.type] = SensorReading(
-            name = sensor.name,
-            values = values.toList(),
-            ranges = ranges
-        )
-        _sensorReadings.value = readings.toMap()
+            readings[sensor.type] = SensorReading(
+                name = sensor.name,
+                values = values.toList(),
+                ranges = ranges
+            )
+            _sensorReadings.value = readings.toMap()
+        }
+    }
+
+    fun updateCameraRGBReading(values: FloatArray) {
+        mainHandler.post {
+            val ranges = getOrCreateRanges(CameraRGBSensor.TYPE_CAMERA_RGB, 3)
+            values.forEachIndexed { index, value ->
+                ranges[index].update(value)
+            }
+
+            readings[CameraRGBSensor.TYPE_CAMERA_RGB] = SensorReading(
+                name = "Camera RGB Sensor",
+                values = values.toList(),
+                ranges = ranges
+            )
+            _sensorReadings.value = readings.toMap()
+        }
     }
 }
 
@@ -94,6 +125,7 @@ class SensorFragment : Fragment(), SensorEventListener {
     private lateinit var sensorManager: SensorManager
     private val activeSensors = mutableListOf<Sensor>()
     private val viewModel: SensorViewModel by viewModels()
+    private var cameraRGBSensor: CameraRGBSensor? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -113,7 +145,20 @@ class SensorFragment : Fragment(), SensorEventListener {
         return ComposeView(requireContext()).apply {
             setContent {
                 MaterialTheme {
-                    SensorReadingsScreen(viewModel)
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        SensorReadingsScreen(viewModel) { previewView ->
+                            // Initialize camera RGB sensor with the PreviewView
+                            if (cameraRGBSensor == null) {
+                                cameraRGBSensor = CameraRGBSensor(
+                                    requireContext(),
+                                    viewLifecycleOwner,
+                                    previewView
+                                ) { rgbValues ->
+                                    viewModel.updateCameraRGBReading(rgbValues)
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -129,6 +174,12 @@ class SensorFragment : Fragment(), SensorEventListener {
     override fun onPause() {
         super.onPause()
         sensorManager.unregisterListener(this)
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        cameraRGBSensor?.release()
+        cameraRGBSensor = null
     }
 
     override fun onSensorChanged(event: SensorEvent) {
@@ -191,7 +242,10 @@ private fun SensorRangeIndicator(
 }
 
 @Composable
-private fun SensorReadingsScreen(viewModel: SensorViewModel) {
+private fun SensorReadingsScreen(
+    viewModel: SensorViewModel,
+    onPreviewCreated: (PreviewView) -> Unit
+) {
     val readings: Map<Int, SensorReading> by viewModel.sensorReadings.observeAsState(emptyMap())
 
     Column(
@@ -200,7 +254,10 @@ private fun SensorReadingsScreen(viewModel: SensorViewModel) {
             .padding(16.dp)
             .verticalScroll(rememberScrollState())
     ) {
-        readings.entries.forEach { (_, reading) ->
+        readings.entries.sortedBy { 
+            // Put RGB sensor at the top
+            if (it.key == CameraRGBSensor.TYPE_CAMERA_RGB) -1 else it.key 
+        }.forEach { (sensorType, reading) ->
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -211,14 +268,44 @@ private fun SensorReadingsScreen(viewModel: SensorViewModel) {
                     style = MaterialTheme.typography.titleMedium,
                     color = Color.White
                 )
+
+                // Add camera preview for RGB sensor
+                if (sensorType == CameraRGBSensor.TYPE_CAMERA_RGB) {
+                    AndroidView(
+                        factory = { context ->
+                            PreviewView(context).apply {
+                                this.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+                                this.scaleType = PreviewView.ScaleType.FILL_CENTER
+                                layoutParams = ViewGroup.LayoutParams(
+                                    ViewGroup.LayoutParams.MATCH_PARENT,
+                                    300 // Taller preview in the list
+                                )
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(300.dp)
+                            .padding(vertical = 8.dp)
+                    ) { previewView ->
+                        onPreviewCreated(previewView)
+                    }
+                }
                 
                 reading.values.forEachIndexed { index, value ->
                     if (index < reading.ranges.size) {
-                        val axis = when (index) {
-                            0 -> "X"
-                            1 -> "Y"
-                            2 -> "Z"
-                            else -> index.toString()
+                        val axis = when {
+                            sensorType == CameraRGBSensor.TYPE_CAMERA_RGB -> when(index) {
+                                0 -> "Red"
+                                1 -> "Green"
+                                2 -> "Blue"
+                                else -> index.toString()
+                            }
+                            else -> when(index) {
+                                0 -> "X"
+                                1 -> "Y"
+                                2 -> "Z"
+                                else -> index.toString()
+                            }
                         }
                         
                         Text(
