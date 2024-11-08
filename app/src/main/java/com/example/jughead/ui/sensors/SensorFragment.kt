@@ -408,8 +408,8 @@ private fun SensorReadingsScreen(
                                         AndroidView(
                                             factory = { context ->
                                                 PreviewView(context).apply {
-                                                    this.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
-                                                    this.scaleType = PreviewView.ScaleType.FILL_CENTER
+                                                    this.implementationMode = PreviewView.ImplementationMode.PERFORMANCE
+                                                    this.scaleType = PreviewView.ScaleType.FIT_CENTER
                                                     layoutParams = ViewGroup.LayoutParams(
                                                         ViewGroup.LayoutParams.MATCH_PARENT,
                                                         300

@@ -42,8 +42,9 @@ class CameraRGBSensor(
         cameraProviderFuture.addListener({
             cameraProvider = cameraProviderFuture.get()
 
-            // Set up Preview
+            // Set up Preview with specific configuration
             val preview = Preview.Builder()
+                .setTargetRotation(previewView.display.rotation)
                 .build()
                 .also {
                     it.setSurfaceProvider(previewView.surfaceProvider)
@@ -52,6 +53,7 @@ class CameraRGBSensor(
             imageAnalyzer = ImageAnalysis.Builder()
                 .setOutputImageFormat(OUTPUT_IMAGE_FORMAT_RGBA_8888)
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                .setTargetRotation(previewView.display.rotation)
                 .build()
                 .also { analysis ->
                     analysis.setAnalyzer(cameraExecutor) { image ->
@@ -84,8 +86,8 @@ class CameraRGBSensor(
         var totalB = 0L
         var pixelCount = 0
 
-        // Process every 4th pixel for performance (RGBA format)
-        for (i in 0 until data.size step 16) {
+        // Process every 4th pixel (RGBA format)
+        for (i in 0 until data.size step 4) {
             if (i + 3 >= data.size) break
             
             val r = data[i].toInt() and 0xff
