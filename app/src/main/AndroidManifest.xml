@@ -4,9 +4,18 @@
 
     <!-- Permission for accessing health-related sensors -->
     <uses-permission android:name="android.permission.BODY_SENSORS" />
+    <!-- Internet permission for UDP communication -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <!-- Camera permissions -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" />
+    <!-- Microphone and Speech Recognition permissions -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
 
     <application
         android:allowBackup="true"

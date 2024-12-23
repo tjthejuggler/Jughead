@@ -1,0 +1,6 @@
+i need to design the wizard for making new gestures
+make a timeline for when which gesture is on or off
+make a way to turn on/off other gestures by doing a particular gesture
+change dashboard to some`   thing that gives direct control of the balls colors
+    would be great if i could automatically detect balls that are available instead of needing to give their ip
+                  b 

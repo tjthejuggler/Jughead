@@ -81,25 +81,54 @@ enum class SensorCategory(val title: String) {
 }
 
 fun Sensor.getCategory(): SensorCategory = when (this.type) {
-    Sensor.TYPE_LIGHT, 
-    Sensor.TYPE_PROXIMITY -> SensorCategory.VISION
+    // Vision sensors
+    Sensor.TYPE_LIGHT,
+    Sensor.TYPE_PROXIMITY,
+    65578, // WideIR Light
+    65579, // NarrowIR Light
+    65580  // ColorIR Light
+    -> SensorCategory.VISION
     
+    // Movement sensors
     Sensor.TYPE_ACCELEROMETER,
     Sensor.TYPE_GYROSCOPE,
+    Sensor.TYPE_LINEAR_ACCELERATION,
     Sensor.TYPE_STEP_COUNTER,
     Sensor.TYPE_STEP_DETECTOR,
-    Sensor.TYPE_SIGNIFICANT_MOTION -> SensorCategory.MOVEMENT
+    Sensor.TYPE_SIGNIFICANT_MOTION,
+    Sensor.TYPE_GRAVITY
+    -> SensorCategory.MOVEMENT
     
+    // Position sensors
     Sensor.TYPE_MAGNETIC_FIELD,
+    Sensor.TYPE_MAGNETIC_FIELD_UNCALIBRATED,
     Sensor.TYPE_ORIENTATION,
-    Sensor.TYPE_GRAVITY,
-    Sensor.TYPE_ROTATION_VECTOR -> SensorCategory.POSITION
+    Sensor.TYPE_ROTATION_VECTOR,
+    Sensor.TYPE_GAME_ROTATION_VECTOR,
+    Sensor.TYPE_GEOMAGNETIC_ROTATION_VECTOR
+    -> SensorCategory.POSITION
     
+    // Environment sensors
     Sensor.TYPE_PRESSURE,
     Sensor.TYPE_AMBIENT_TEMPERATURE,
-    Sensor.TYPE_RELATIVE_HUMIDITY -> SensorCategory.ENVIRONMENT
+    Sensor.TYPE_RELATIVE_HUMIDITY
+    -> SensorCategory.ENVIRONMENT
     
-    else -> SensorCategory.POSITION // Default category for unknown sensors
+    else -> when {
+        // Additional categorization based on sensor name
+        this.name.contains("gyro", ignoreCase = true) -> SensorCategory.MOVEMENT
+        this.name.contains("accel", ignoreCase = true) -> SensorCategory.MOVEMENT
+        this.name.contains("light", ignoreCase = true) -> SensorCategory.VISION
+        this.name.contains("ir", ignoreCase = true) -> SensorCategory.VISION
+        this.name.contains("motion", ignoreCase = true) -> SensorCategory.MOVEMENT
+        this.name.contains("magnetic", ignoreCase = true) -> SensorCategory.POSITION
+        this.name.contains("orientation", ignoreCase = true) -> SensorCategory.POSITION
+        this.name.contains("rotation", ignoreCase = true) -> SensorCategory.POSITION
+        this.name.contains("temp", ignoreCase = true) -> SensorCategory.ENVIRONMENT
+        this.name.contains("humidity", ignoreCase = true) -> SensorCategory.ENVIRONMENT
+        this.name.contains("pressure", ignoreCase = true) -> SensorCategory.ENVIRONMENT
+        else -> SensorCategory.POSITION
+    }
 }
 
 class SensorViewModel(private val context: Context) : ViewModel() {
@@ -398,11 +427,73 @@ private fun SensorReadingsScreen(
                                         .fillMaxWidth()
                                         .padding(vertical = 8.dp)
                                 ) {
-                                    Text(
-                                        text = reading.name,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = Color.White
-                                    )
+                                    val shortName = when {
+                                        // First check specific sensor types
+                                        sensorType == Sensor.TYPE_ACCELEROMETER -> "Accel"
+                                        sensorType == Sensor.TYPE_GYROSCOPE -> "Gyro"
+                                        sensorType == Sensor.TYPE_LINEAR_ACCELERATION -> "LinAccel"
+                                        sensorType == Sensor.TYPE_STEP_COUNTER -> "Steps"
+                                        sensorType == Sensor.TYPE_STEP_DETECTOR -> "StepDet"
+                                        sensorType == Sensor.TYPE_SIGNIFICANT_MOTION -> "SigMot"
+                                        sensorType == Sensor.TYPE_GRAVITY -> "Grav"
+                                        sensorType == Sensor.TYPE_MAGNETIC_FIELD -> "Mag"
+                                        sensorType == Sensor.TYPE_MAGNETIC_FIELD_UNCALIBRATED -> "MagUncal"
+                                        sensorType == Sensor.TYPE_ORIENTATION -> "Orient"
+                                        sensorType == Sensor.TYPE_ROTATION_VECTOR -> "Rot"
+                                        sensorType == Sensor.TYPE_GAME_ROTATION_VECTOR -> "GameRot"
+                                        sensorType == Sensor.TYPE_GEOMAGNETIC_ROTATION_VECTOR -> "GeoRot"
+                                        sensorType == Sensor.TYPE_LIGHT -> "Light"
+                                        sensorType == Sensor.TYPE_PROXIMITY -> "Prox"
+                                        sensorType == CameraRGBSensor.TYPE_CAMERA_RGB -> "RGB"
+                                        sensorType == Sensor.TYPE_PRESSURE -> "Press"
+                                        sensorType == Sensor.TYPE_AMBIENT_TEMPERATURE -> "Temp"
+                                        sensorType == Sensor.TYPE_RELATIVE_HUMIDITY -> "Humid"
+                                        
+                                        // Then check special sensor types by their numeric values
+                                        sensorType == 65578 -> "WideIR"
+                                        sensorType == 65579 -> "NarrowIR"
+                                        sensorType == 65580 -> "ColorIR"
+                                        
+                                        // For any other sensors, derive a name from their full name
+                                        else -> {
+                                            val fullName = reading.name.lowercase()
+                                            when {
+                                                fullName.contains("gyroscope") -> "Gyro${if(fullName.contains("uncalibrated")) "Uncal" else ""}"
+                                                fullName.contains("accelerometer") -> "Accel${if(fullName.contains("uncalibrated")) "Uncal" else ""}"
+                                                fullName.contains("magnetometer") -> "Mag${if(fullName.contains("uncalibrated")) "Uncal" else ""}"
+                                                fullName.contains("light") -> when {
+                                                    fullName.contains("wide") -> "WideIR"
+                                                    fullName.contains("narrow") -> "NarrowIR"
+                                                    fullName.contains("color") -> "ColorIR"
+                                                    else -> "Light"
+                                                }
+                                                fullName.contains("proximity") -> "Prox"
+                                                fullName.contains("rotation") -> when {
+                                                    fullName.contains("game") -> "GameRot"
+                                                    fullName.contains("geomagnetic") -> "GeoRot"
+                                                    else -> "Rot"
+                                                }
+                                                fullName.contains("gravity") -> "Grav"
+                                                fullName.contains("orientation") -> "Orient"
+                                                fullName.contains("temperature") -> "Temp"
+                                                fullName.contains("humidity") -> "Humid"
+                                                fullName.contains("pressure") -> "Press"
+                                                else -> "Sensor${sensorType}" // Fallback with type number
+                                            }
+                                        }
+                                    }
+                                    Column {
+                                        Text(
+                                            text = shortName,
+                                            style = MaterialTheme.typography.titleSmall,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        Text(
+                                            text = reading.name,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = Color.White
+                                        )
+                                    }
 
                                     if (sensorType == CameraRGBSensor.TYPE_CAMERA_RGB && (!hideUnchangedSensors || reading.ranges.any { it.hasChanged() })) {
                                         AndroidView(
@@ -427,20 +518,20 @@ private fun SensorReadingsScreen(
                                     
                                     reading.values.forEachIndexed { index, value ->
                                         if (index < reading.ranges.size && (!hideUnchangedSensors || reading.ranges[index].hasChanged())) {
-                                            val axis = when {
-                                                sensorType == CameraRGBSensor.TYPE_CAMERA_RGB -> when(index) {
-                                                    0 -> "Red"
-                                                    1 -> "Green"
-                                                    2 -> "Blue"
-                                                    else -> index.toString()
+                                                val axis = when {
+                                                    sensorType == CameraRGBSensor.TYPE_CAMERA_RGB -> when(index) {
+                                                        0 -> "R"
+                                                        1 -> "G"
+                                                        2 -> "B"
+                                                        else -> index.toString()
+                                                    }
+                                                    else -> when(index) {
+                                                        0 -> "X"
+                                                        1 -> "Y"
+                                                        2 -> "Z"
+                                                        else -> index.toString()
+                                                    }
                                                 }
-                                                else -> when(index) {
-                                                    0 -> "X"
-                                                    1 -> "Y"
-                                                    2 -> "Z"
-                                                    else -> index.toString()
-                                                }
-                                            }
                                             
                                             Text(
                                                 text = "$axis: ${String.format("%.2f", value)}",

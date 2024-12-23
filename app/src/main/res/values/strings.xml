@@ -1,8 +1,9 @@
 <resources>
     <string name="app_name">Jughead</string>
     <string name="title_home">Home</string>
-    <string name="title_dashboard">Dashboard</string>
+    <string name="title_dashboard">Balls</string>
     <string name="title_notifications">Notifications</string>
     <string name="title_sensors">Sensors</string>
     <string name="title_gesture_mapping">Gesture Mapping</string>
+    <string name="title_mic">Mic</string>
 </resources>

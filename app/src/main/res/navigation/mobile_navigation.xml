@@ -10,10 +10,10 @@
         android:label="@string/title_home"
         tools:layout="@layout/fragment_home" />
     <fragment
-        android:id="@+id/navigation_dashboard"
-        android:name="com.example.jughead.ui.dashboard.DashboardFragment"
+        android:id="@+id/navigation_balls"
+        android:name="com.example.jughead.ui.balls.BallsFragment"
         android:label="@string/title_dashboard"
-        tools:layout="@layout/fragment_dashboard" />
+        tools:layout="@layout/fragment_balls" />
     <fragment
         android:id="@+id/navigation_sensors"
         android:name="com.example.jughead.ui.sensors.SensorFragment"
@@ -24,4 +24,9 @@
         android:name="com.example.jughead.ui.gesturemapping.GestureMappingFragment"
         android:label="@string/title_gesture_mapping"
         tools:layout="@layout/fragment_gesture_mapping" />
+    <fragment
+        android:id="@+id/navigation_mic"
+        android:name="com.example.jughead.ui.mic.MicFragment"
+        android:label="@string/title_mic"
+        tools:layout="@layout/fragment_mic" />
 </navigation>
